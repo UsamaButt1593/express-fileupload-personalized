@@ -1,7 +1,5 @@
 {
-  "extends": [
-    "eslint:recommended"
-  ],
+  "extends": ["eslint:recommended"],
   "env": {
     "node": true,
     "mocha": true,
@@ -11,13 +9,16 @@
     "ecmaVersion": 6
   },
   "rules": {
-    "comma-dangle": [2, "never"],
-    "max-len": [2, {
-      "code": 100,
-      "tabWidth": 2
-    }],
+    "comma-dangle": [2, "ignore"],
+    "max-len": [
+      2,
+      {
+        "code": 100,
+        "tabWidth": 2
+      }
+    ],
     "semi": 2,
     "keyword-spacing": 2,
-    "indent": [2, 2, { "SwitchCase": 1 }]
+    "indent": [0, 2, { "SwitchCase": 1 }]
   }
 }

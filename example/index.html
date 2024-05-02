@@ -1,12 +1,30 @@
 <html>
-	<body>
-		<form ref='uploadForm' 
-			id='uploadForm' 
-			action='/upload' 
-			method='post' 
-			encType="multipart/form-data">
-				<input type="file" name="sampleFile" />
-				<input type='submit' value='Upload!' />
-		</form>		
-	</body>
+  <body>
+    <div>
+      <h2>Upload Single File per Field</h2>
+      <form action="/upload_single" method="post" enctype="multipart/form-data">
+        <input type="file" name="sampleFile" />
+        <input type="submit" value="Upload!" />
+      </form>
+    </div>
+    <div>
+      <h2>Upload Multiple Files Per Field</h2>
+      <form action="/upload_single" method="post" enctype="multipart/form-data">
+        <input type="file" name="sampleFile" multiple />
+        <input type="submit" value="Upload!" />
+      </form>
+    </div>
+    <div>
+      <h2>Upload Multiple File Fields</h2>
+      <form
+        action="/upload_multiple"
+        method="post"
+        enctype="multipart/form-data"
+      >
+        <input type="file" name="sampleFile1" />
+        <input type="file" name="sampleFile2" multiple />
+        <input type="submit" value="Upload!" />
+      </form>
+    </div>
+  </body>
 </html>

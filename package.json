@@ -1,19 +1,18 @@
 {
-  "name": "express-fileupload",
+  "name": "express-fileupload-personalized",
   "version": "1.5.0",
   "author": "Richard Girges <richardgirges@gmail.com>",
-  "description": "Simple express file upload middleware that wraps around Busboy",
+  "description": "Personalized version of express-fileupload package",
   "main": "./lib/index",
+  "types": "./lib/index.d.ts",
   "scripts": {
-    "pretest": "node ./test/pretests.js",
-    "posttest": "node ./test/posttests.js",
-    "test": "nyc  --reporter=html --reporter=text mocha -- -R spec",
     "lint": "eslint ./",
-    "lint:fix": "eslint --fix ./",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls"
+    "lint:fix": "eslint --fix ./"
   },
   "dependencies": {
-    "busboy": "^1.6.0"
+    "busboy": "^1.6.0",
+    "@types/busboy": "*",
+    "@types/express": "*"
   },
   "engines": {
     "node": ">=12.0.0"
@@ -26,19 +25,14 @@
     "multipart",
     "files",
     "busboy",
-    "middleware"
+    "middleware",
+    "personalized"
   ],
   "license": "MIT",
-  "repository": "richardgirges/express-fileupload",
+  "repository": "UsamaButt1593/express-fileupload-personalized",
   "devDependencies": {
-    "coveralls": "^3.1.1",
     "eslint": "^7.31.0",
     "express": "^4.18.1",
-    "md5": "^2.3.0",
-    "mocha": "^10.0.0",
-    "nyc": "^15.1.0",
-    "rimraf": "^3.0.2",
-    "rnd-file": "^0.0.1",
-    "supertest": "^6.1.5"
+    "md5": "^2.3.0"
   }
 }
