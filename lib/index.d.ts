@@ -88,10 +88,10 @@ declare namespace fileUpload {
      */
     preserveExtension?: boolean | number | undefined;
     /**
-     * User defined limit handler which will be invoked if the file is bigger than configured limits.
+     * User defined error handler which will be invoked if there was any error, including exceeding limit error, while parsing files.
      * @default false
      */
-    limitErrorHandler?: boolean | ErrorRequestHandler | undefined;
+    errorHandler?: boolean | ErrorRequestHandler | undefined;
     /**
      * By default this module uploads files into RAM.
      * Setting this option to `true` turns on using temporary files instead of utilising RAM.

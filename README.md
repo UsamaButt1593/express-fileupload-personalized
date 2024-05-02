@@ -4,25 +4,47 @@ Personalized version of express-fileupload package
 
 # Changes in Fork
 
-### 1). Remove `abortOnLimit` and `truncated` support
+### 1). Clean all files if error occurs for any of files being uploaded
 
-**In original**, if `limit` is defined in options, default behaviour is to stop receiving more bytes for that file and set file on `req` object with `truncated` flag set to true on file, and call the next middleware without any errors. If `abortOnLimit` is also set to `true`, it first calls `limitHandler` and then tries to close connection by calling `res.end` with `413` status code.
+_**One thing important to keep in mind is that busboy parses request body sequentially, and as a result this library also sequentially parses files present in the request body**_
 
-**In Fork**, if `limit` is defined, default behaviour is to stop receiving more bytes for that file, and call the `limitErrorHandler` if passed by user or `next(err)` so that express or user itself may handle it in appropriate errorHandler. If user passed `limitErrorHandler`, it is then responsibility of the user to end/propagate the request.
+#### Original Behaviour
+
+When multiple files are being uploaded either via single input field or via multiple input fields, default behaviour if error occurs for any of the files, is to stop parsing request furthermore, clean the file which gave the error, and call `next(error)` to propagate error to next error handler.
+
+This behaviour is true for files which exceed configured size limits.
+
+### Problem Statement
+
+There is a serious drawback of original approach when using with `useTempFiles` option. Let's consider our form has 6 file fields and if error occurs for 4th file being parsed, what will be the behaviour of original library? We have to acknowledge that at the time of error, 3 files have already been parsed and saved to `tempFileDir`. The behaviour will be to stop parsing request furthermore, clean the 4th file being parsed from `tempFileDir`, call `next(error)` to propagate error to next error handler which will most probably do some logging and end the response with details of error. **_It will not parse remaining 2 files and it will also not clean 3 files which have already been parsed._**
+
+One might say that rationale behind not cleaning already parsed files from `tempFileDir` is that library user may need to know which files the library was able to parse and save to `tempFileDir` without any errors so that he/she may somehow process those files or log those files. But this seems very illogical because we have already skipped remaining 2 files which would have alse been parsed without errors if we would have continued parsing request after encountring error in one file.
+
+### Fork Behaviour
+
+If error occurs for any of the files being uploaded, stop parsing request furthermore, clean the file which gave the error, clean files which have already been parsed for current request, and call `errorHandler` if passed by the user or `next(error)` so that error may be handled appropriately by the user.
+
+If user passed `errorHandler`, it is then responsibility of the user to end the response. If files are optional fotr next middleware, User may either decide to call `next()` to propagate request to next middleware in chain. User may call `next(error)` to propagate error to next errorHandlerMiddleware in chain. User may call `res.send`, `res.end`, or `res.json` to end the response.
+
+### 2). Remove `abortOnLimit` and `truncated` support
+
+**In Original**, if `limit` is defined in options, default behaviour is to stop receiving more bytes for that file and set file on `req` object with `truncated` flag set to true on file, and call the next middleware without any errors. If `abortOnLimit` is also set to `true`, it first calls `limitHandler` and then tries to close connection by calling `res.end` with `413` status code. There is no cleaning of already parsed file as desctibed above.
+
+**In Fork**, if `limit` is defined, default behaviour is to stop receiving more bytes for that file, clean that file, clean files which have already been parsed for current request, and call the `errorHandler` with `FileUploadLimitError` if `errorHandler` is passed by user or `next(FileUploadLimitError)` so that error may be handled appropriately by the user.
 
 We are doing this change because, desired behaviour in most of cases, is to abort and do not process truncated files. In original version, we could not call `res.end` in `limitHandler` if `abortOnLimit` is used as it will result in errors because library has already sent response in `closeConnection` method. If we do not use `abortOnLimit`, `closeConnection` is not called and library will continue to parse other files, if any, because `req.unpipe(busboy)` is called in `closeConnection`.
 
-### 2). Make `req.files` an array in case of single file upload also
+### 3). Make `req.files` an array in case of single file upload also
 
-**In original**, `req.files` is array of file objects only if user sends multiple files per key by setting `multiple` prop of html's input element set to `true`, otherwise `req.files` is a file object if user only sends one file per key.
+**In Original**, `req.files` is array of file objects only if user sends multiple files per key by setting `multiple` prop of html's input element set to `true`, otherwise `req.files` is a file object if user only sends one file per key.
 
 **In Fork**, `req.files` is always array of file objects irrespective of whether user send multiple or one file per key.
 
 We are doing this change because of better typing and validation.
 
-### 3). Fix Bug. next middleware is called even after uploadTimeout.
+### 4). Fix Bug. next middleware is called even after uploadTimeout.
 
-**In original**, uploadTimeout sends an error event to file that does cleanup and calls the next middleware without passing error. So express thinks that uploadFile middleware was successful but in reality it was not successful.
+**In Original**, uploadTimeout sends an error event to file that does cleanup and calls the next middleware without passing error. So express thinks that uploadFile middleware was successful but in reality it was not successful.
 
 **In Fork**, call `next(err)` instead of `next` in `file.on('err', ...)` so that uploadFile middleware is not considered successful and error is propagated to appropriate error handler by express.
 
@@ -92,6 +114,110 @@ app.use(
 );
 ```
 
+### Limiting size of file that can be uploaded
+
+Let's say we have an endpoint called `/upload` to which we can post csv file(s). Here is frontend code:
+
+```html
+<form action="/upload" method="post" enctype="multipart/form-data">
+  <p>
+    <label for="csv">CSV File</label>
+    <input id="csv" type="file" name="csv" accept=".csv" multiple />
+  </p>
+  <p><button type="submit">Submit</button></p>
+</form>
+```
+
+Here is backend code:
+
+```javascript
+app = express();
+
+app.post('/upload', createFileUploaderMiddleware(), (req, res) => {
+  let csvFiles = req.files.csv;
+  if (csvFiles === undefined || csvFiles === null) {
+    return res.send('No files were uploaded!');
+  }
+
+  const response = [];
+  for (const csvFile of csvFiles) {
+    response.push({
+      name: csvFile.name,
+      size: csvFile.size,
+      md5: csvFile.md5,
+    });
+  }
+  res.json(response);
+});
+```
+
+If we want to limit the size of individual file that can be uploaded to 2MB, you can configure `limits` on middleware like:
+
+```javascript
+// If we do not set `errorHandler` option, default behaviour of file uploader muddleware is to call next(err)
+createFileUploaderMiddleware({
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2 MB
+  },
+});
+
+// global error handler
+app.use((err, req, res, next) => {
+  // handle errors here, including any limit exceeded errors
+  res.status(500).json({
+    error: true,
+    code: 500,
+    message: 'Internal Server Error',
+  });
+});
+```
+
+If you want to distinguish errors coming from file uploader middlewares from other errors, you can configure an `errorHandler` like:
+
+```javascript
+createFileUploaderMiddleware({
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2 MB
+  },
+  errorHandler: (err, req, res, next) => {
+    // handle all errors from file uploader middleware here
+    if (err instanceof FileUploadLimitError) {
+      return res.status(413 /* request entity too large code */).json({
+        error: true,
+        code: 413,
+        message: err.message,
+      });
+    }
+
+    // pass errors other than limit exceeded errors to global error handler
+    next(err);
+  },
+});
+
+// global error handler
+app.use((err, req, res, next) => {
+  res.status(500).json({
+    error: true,
+    code: 500,
+    message: 'Internal Server Error',
+  });
+});
+```
+
+**_NOT RECOMMENDED,_** but if you want to ignore all errors including limit exceeded errors, and continue to next middleware without files **_(`req.files` will be `undefined`)_**, you can do something like:
+
+```javascript
+createFileUploaderMiddleware({
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2 MB
+  },
+  errorHandler: (err, req, res, next) => {
+    // ignore all errors and continue to next middleware (req.files will be undefined)
+    next();
+  },
+});
+```
+
 ### Using useTempFile Options
 
 Use temp files instead of memory for managing the upload process.
@@ -150,7 +276,7 @@ Pass in non-Busboy options directly to the middleware. These are express-fileupl
 | debug              | <ul><li><code>false</code>&nbsp;**(default)**</li><li><code>true</code></ul>                                    | Turn on/off upload process logging. Can be useful for troubleshooting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | logger             | <ul><li><code>console</code>&nbsp;**(default)**</li><li><code>{log: function(msg: string)}</code></li></ul>     | Customizable logger to write debug messages to. Console is default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | uploadTimeout      | <ul><li><code>60000</code>&nbsp;**(default)**</li><li><code>Integer</code></ul>                                 | This defines how long to wait for data before aborting. Set to 0 if you want to turn off timeout checks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| limitErrorHandler  | <ul><li><code>false</code>&nbsp;**(default)**</li><li><code>function(err, req, res, next)</code></li></ul>      | User defined error handler which will be invoked if the file is bigger than configured limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| errorHandler       | <ul><li><code>false</code>&nbsp;**(default)**</li><li><code>function(err, req, res, next)</code></li></ul>      | User defined error handler which will be invoked if there was any error, including exceeding limit error, while parsing files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 # Thanks & Credit
 

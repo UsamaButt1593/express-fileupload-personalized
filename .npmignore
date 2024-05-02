@@ -18,4 +18,8 @@ test/uploads
 test/files/*
 example
 
+.eslintignore
+.eslintrc
+.prettierrc
+
 yarn.lock
