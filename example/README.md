@@ -6,11 +6,11 @@
 
 ```javascript
 const express = require('express');
-const fileUpload = require('express-fileupload');
+const { createFileUploaderMiddleware } = require('express-fileupload');
 const app = express();
 
 // default options
-app.use(fileUpload());
+app.use(createFileUploaderMiddleware());
 
 app.post('/upload', function (req, res) {
   let sampleFile;

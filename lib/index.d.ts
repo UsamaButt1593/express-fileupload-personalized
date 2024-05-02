@@ -1,5 +1,5 @@
 import type { BusboyConfig } from 'busboy';
-import type { RequestHandler } from 'express';
+import type { RequestHandler, ErrorRequestHandler } from 'express';
 
 declare global {
   namespace Express {
@@ -8,8 +8,6 @@ declare global {
     }
   }
 }
-
-declare function fileUpload(options?: fileUpload.Options): RequestHandler;
 
 declare namespace fileUpload {
   interface FileArray {
@@ -64,10 +62,10 @@ declare namespace fileUpload {
      *
      * @example
      * // strip slashes from file names
-     * app.use(fileUpload({ safeFileNames: /\\/g }))
+     * app.use(createFileUploaderMiddleware({ safeFileNames: /\\/g }))
      *
      * @example
-     * app.use(fileUpload({ safeFileNames: true }))
+     * app.use(createFileUploaderMiddleware({ safeFileNames: true }))
      */
     safeFileNames?: boolean | RegExp | undefined;
     /**
@@ -80,31 +78,20 @@ declare namespace fileUpload {
      *
      * @example
      * // true
-     * app.use(fileUpload({ safeFileNames: true, preserveExtension: true }));
+     * app.use(createFileUploaderMiddleware({ safeFileNames: true, preserveExtension: true }));
      * // myFileName.ext --> myFileName.ext
      *
      * @example
      * // max extension length 2, extension shifted
-     * app.use(fileUpload({ safeFileNames: true, preserveExtension: 2 }));
+     * app.use(createFileUploaderMiddleware({ safeFileNames: true, preserveExtension: 2 }));
      * // myFileName.ext --> myFileNamee.xt
      */
     preserveExtension?: boolean | number | undefined;
     /**
-     * Returns a HTTP 413 when the file is bigger than the size limit if `true`.
-     * Otherwise, it will add a `truncated = true` to the resulting file structure.
-     * @default false
-     */
-    abortOnLimit?: boolean | undefined;
-    /**
-     * Response which will be send to client if file size limit exceeded when `abortOnLimit` set to `true`.
-     * @default 'File size limit has been reached'
-     */
-    responseOnLimit?: string | undefined;
-    /**
      * User defined limit handler which will be invoked if the file is bigger than configured limits.
      * @default false
      */
-    limitHandler?: boolean | RequestHandler | undefined;
+    limitErrorHandler?: boolean | ErrorRequestHandler | undefined;
     /**
      * By default this module uploads files into RAM.
      * Setting this option to `true` turns on using temporary files instead of utilising RAM.
@@ -145,6 +132,14 @@ declare namespace fileUpload {
      * @default 60_000
      */
     uploadTimeout?: number | undefined;
+  }
+
+  declare function createFileUploaderMiddleware(
+    options?: fileUpload.Options
+  ): RequestHandler;
+
+  declare class FileUploadLimitError extends Error {
+    constructor(message: string);
   }
 }
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const fileUpload = require('../lib/index');
+const { createFileUploaderMiddleware } = require('../lib/index');
 
 const getUploadedFileData = (file) => ({
   md5: file.md5,
@@ -13,7 +13,7 @@ const PORT = 8000;
 app.use('/form', express.static(__dirname + '/index.html'));
 
 // default options
-app.use(fileUpload());
+app.use(createFileUploaderMiddleware());
 
 app.get('/ping', function (req, res) {
   res.send('pong');
