@@ -16,7 +16,6 @@ coverage
 .nyc_output
 test/uploads
 test/files/*
-example/uploads/*
-!example/uploads/placeholder.txt
+example
 
 yarn.lock

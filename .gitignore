@@ -11,6 +11,7 @@ npm-debug.log
 node_modules
 *.log
 *.gz
+.npmignore
 
 coverage
 .nyc_output
